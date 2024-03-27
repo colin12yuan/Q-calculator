@@ -8,17 +8,22 @@ import cn.qmai.discount.core.utils.DiscountGroupUtil;
 import cn.qmai.discount.core.utils.IdGenerator;
 import cn.qmai.discount.core.utils.LimitingUtil;
 import cn.qmai.discount.demo.biz.constant.Constant;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import java.util.stream.IntStream;
 import org.apache.commons.lang3.tuple.Pair;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import cn.qmai.discount.core.aware.CalculatorRouter;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@RestController
+@RequestMapping("/test")
 public class TestController {
 
     private final CalculatorRouter calculatorRouter;
@@ -27,7 +32,7 @@ public class TestController {
         this.calculatorRouter = calculatorRouter;
     }
 
-    @RequestMapping("test")
+    @GetMapping("/test1")
     @ResponseBody
     public Object test() {
         //mock商品
@@ -43,7 +48,7 @@ public class TestController {
         //构建计算流
         Flowable flowable = (Flowable) new Flowable().build(calculatorRouter);
         for(Pair<Set<DiscountWrapper>,Set<DiscountWrapper>> set:pairs) {
-            //统计算力
+            //统计算力：待确定原因
             count += LimitingUtil.count(set.getLeft().size());
             if(count>100000){
                 break;
@@ -59,6 +64,10 @@ public class TestController {
         return Pair.of(globalPrice,globalStages);
     }
 
+    /**
+     * mock 共享互斥协议 DiscountGroup
+     * @return
+     */
     private List<List<DiscountGroup>> mockGroups(){
         List<List<DiscountGroup>> groups = Lists.newArrayList();
         DiscountGroup group = new DiscountGroup();
@@ -78,12 +87,26 @@ public class TestController {
     }
 
     private List<Pair<Set<DiscountWrapper>,Set<DiscountWrapper>>> transform(List<List<DiscountGroup>> groups){
+        // 优惠信息
         List<DiscountWrapper> wrapperList = Lists.newArrayList(
                 DiscountWrapper.of("zhekou", "1", "折扣", false, new DiscountConfig()),
                 DiscountWrapper.of("manjian", "2", "满减", false, new DiscountConfig())
         );
+        // type -> (id -> DiscountWrapper)
+        // 优惠类型 -> (优惠的ID -> 优惠类)
         Map<String, Map<String,DiscountWrapper>> inMap = wrapperList.stream().collect(Collectors.toMap(DiscountWrapper::getType, x->ImmutableMap.of(x.getId(),x)));
         return DiscountGroupUtil.transform(groups,inMap);
     }
 
+
+    public static void main(String[] args) {
+        for (int i = 1; i <= 7; i++) {
+            List<Byte> collect = IntStream.range(0, i)
+                    .boxed()
+                    .map(x -> (byte) x.intValue())
+                    .collect(Collectors.toList());
+            Collection<List<Byte>> permutations = Collections2.permutations(collect);
+            System.out.println(permutations);
+        }
+    }
 }

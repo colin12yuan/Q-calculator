@@ -37,16 +37,17 @@ public class DiscountGroup implements Serializable {
     private  List<Item> items;
 
     /**
-     * 根据用户可用的优惠，对组内信息进行过滤
-     * @param inMap
+     * 根据用户可用的优惠，对组内信息进行过滤。
+     * 最终优惠组内只剩下，用户可用优惠信息
+     * @param inMap 优惠类型 -> (优惠的ID -> 优惠类)
      * @return
      */
     public List<Item> filterItems(Map<String, Map<String,DiscountWrapper>> inMap){
-        //inMap 外层key为type，内层key为id，value为DiscountWrapper
+        //inMap：外层key为type，内层key为id，value为DiscountWrapper
         if(CollectionUtils.isEmpty(items)|| MapUtils.isEmpty(inMap)){
             return null;
         }
-        //构建items副本
+        // 构建items副本
         List<Item> itemsCopy = Lists.newArrayList(items);
         Iterator<Item> it = itemsCopy.iterator();
         while(it.hasNext()){

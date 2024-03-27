@@ -81,8 +81,11 @@ public abstract class Permutation<T extends GoodsItem> {
     static{
         //前置计算 1-SUPPORTEDSIZE 之间所有排列组合
         for(byte i=1;i<=SUPPORTEDSIZE;i++){
-            PERMUTATIONS.put((int)i,Collections2.permutations(IntStream.range(0,i).boxed()
-                    .map(x->(byte)x.intValue()).collect(Collectors.toList())));
+            PERMUTATIONS.put((int)i, Collections2.permutations(
+                    IntStream.range(0,i)
+                            .boxed()
+                            .map(x -> (byte)x.intValue())
+                            .collect(Collectors.toList())));
         }
     }
 
@@ -223,7 +226,10 @@ public abstract class Permutation<T extends GoodsItem> {
     }
 
     /**
-     * 根据数组顺序执行计算器
+     * 根据数组顺序执行计算器上下文
+     * @param context 优惠上下文
+     * @param a
+     * @return
      */
     public boolean executeCalc(DiscountContext<T> context,List<Byte> a){
         Integer k = calcKey(a);
