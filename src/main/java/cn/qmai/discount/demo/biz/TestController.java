@@ -8,6 +8,7 @@ import cn.qmai.discount.core.utils.DiscountGroupUtil;
 import cn.qmai.discount.core.utils.IdGenerator;
 import cn.qmai.discount.core.utils.LimitingUtil;
 import cn.qmai.discount.demo.biz.constant.Constant;
+import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -37,7 +38,7 @@ public class TestController {
     public Object test() {
         //mock商品
         List<GoodsItem> items = mockItems();
-        //mock组关系并转化为共享组
+        //mock组关系并转化为共享组。即构建所有的共享组
         List<Pair<Set<DiscountWrapper>,Set<DiscountWrapper>>> pairs = transform(mockGroups());
         //全局最优计算过程
         List<CalcStage> globalStages=Lists.newArrayList();
@@ -47,15 +48,18 @@ public class TestController {
         long globalPrice = totalPrice;
         //构建计算流
         Flowable flowable = (Flowable) new Flowable().build(calculatorRouter);
+        // 计算每个共享组，优惠信息
         for(Pair<Set<DiscountWrapper>,Set<DiscountWrapper>> set:pairs) {
             //统计算力：待确定原因
             count += LimitingUtil.count(set.getLeft().size());
             if(count>100000){
                 break;
             }
+            // 计算当前优惠共享组，优惠结果
             List<DiscountWrapper> wrappers = Lists.newArrayList(set.getLeft());
             DiscountContext<GoodsItem> ctx = DiscountContext.create(totalPrice, Lists.newArrayList(items), wrappers);
             flowable.perm(ctx);
+            // 选择最优的优惠共享组
             if(ctx.getCalcResult().getFinalPrice() < globalPrice) {
                 globalStages = Arrays.asList(ctx.getCalcResult().getStages());
                 globalPrice = ctx.getCalcResult().getFinalPrice();
@@ -105,8 +109,10 @@ public class TestController {
                     .boxed()
                     .map(x -> (byte) x.intValue())
                     .collect(Collectors.toList());
+            System.out.println("i-" + i + "-collect : " + JSON.toJSONString(collect));
             Collection<List<Byte>> permutations = Collections2.permutations(collect);
-            System.out.println(permutations);
+            System.out.println("i-" + i + "-permutations : " + JSON.toJSONString(permutations));
+            System.out.println("-------------------------------------");
         }
     }
 }

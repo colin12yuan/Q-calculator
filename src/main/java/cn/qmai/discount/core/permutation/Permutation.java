@@ -70,6 +70,9 @@ public abstract class Permutation<T extends GoodsItem> {
 
     /**
      *  1-SUPPORTEDSIZE 之间所有排列组合的记录
+     *  如：1 时，[[0]]
+     *  如：2 时，[[0,1],[1,0]]
+     *  如：3 时，[[0,1,2],[0,2,1],[2,0,1],[2,1,0],[1,2,0],[1,0,2]]
      */
     private final static Map<Integer,Collection<List<Byte>>> PERMUTATIONS = Maps.newHashMap();
 
@@ -79,8 +82,10 @@ public abstract class Permutation<T extends GoodsItem> {
     public final static int SUPPORTEDSIZE = 7;
 
     static{
-        //前置计算 1-SUPPORTEDSIZE 之间所有排列组合
+        // 前置计算 1-SUPPORTEDSIZE 之间所有排列组合
         for(byte i=1;i<=SUPPORTEDSIZE;i++){
+            // Collections2.permutations 针对集合，构建所有的排列组合
+            // 如：[0,1,2] -> Collections2.permutations -> [[0,1,2],[0,2,1],[2,0,1],[2,1,0],[1,2,0],[1,0,2]]
             PERMUTATIONS.put((int)i, Collections2.permutations(
                     IntStream.range(0,i)
                             .boxed()
@@ -123,8 +128,11 @@ public abstract class Permutation<T extends GoodsItem> {
         if(size==0){
             return ;
         }
+        // 获取券所有的排列组合。如：有3个优惠类型，则所有的排列组合方式 [[0,1,2],[0,2,1],[2,0,1],[2,1,0],[1,2,0],[1,0,2]]
         Collection<List<Byte>> list = PERMUTATIONS.get(size);
-        for(List<Byte> a:list) {
+        // 计算每种排列组合方式，优惠结果信息
+        for (List<Byte> a : list) {
+            // 当前计算排列组合方式，优惠计算。并判断是否最优计算方式
             boolean isBetter = executeCalc(this.context, a);
             if (isBetter) {
                 //若出现比当前结果更优的结果则替换
@@ -155,7 +163,9 @@ public abstract class Permutation<T extends GoodsItem> {
      * @param result 当前的计算结果
      */
     private void updateRecord(CalcResult result){
+        // 更新最优实付金额
         result.setFinalPrice(result.getCurFinalPrice());
+        // 将当前优惠计算步骤，赋值到最优的优惠计算步骤上
         System.arraycopy(result.getCurStages(),0,result.getStages(),0,result.getStages().length);
     }
 
@@ -193,6 +203,12 @@ public abstract class Permutation<T extends GoodsItem> {
         return true;
     }
 
+    /**
+     *
+     * @param a 计算排列顺序
+     * @param i 优惠所在计算排列顺序的下标
+     * @param k 计算排列顺序，对应的 key
+     */
     private void cacheSnapshot(List<Byte> a,int i,Integer k){
         if(enableOptimize(a)&&i==2&&!cache.containsKey(k)){
             cache.put(k,makeSnapshot(context.getGoodsItems()));
@@ -209,12 +225,21 @@ public abstract class Permutation<T extends GoodsItem> {
         }
     }
 
-    private boolean calcInner(Calculator<T> calculator,DiscountWrapper wrapper,List<Byte> a,int i){
+    /**
+     * 计算优惠信息，并判断此优惠计算排列顺序下，当前优惠计算是否合法
+     * @param calculator 优惠计算器
+     * @param wrapper 优惠信息
+     * @param a 优惠计算排列索引表。如：[4,2,1,3]
+     * @param i 当前优惠索引的下标。下标为 0，则当前优惠的索引为 4
+     * @return 当前优惠计算是否合法。ture-当前优惠可用，并计算优惠结果；false-当前计算排列不合法
+     */
+    private boolean calcInner(Calculator<T> calculator,DiscountWrapper wrapper,List<Byte> a, int i){
         long price = calculator.calcWarp(context, wrapper, context.getRecords(), a.get(i), i);
         if (price < 0) {
             return false;
         }
         if(i<a.size()-1) {
+            // 优惠计算有顺序，若当前优惠计算顺序，比计算排列中下一个优惠计算顺序低，则当前优惠计算不合法
             int order = wrapper.getDiscountConfig().getCalculateGroup();
             int nextOrder = context.getDiscountWrappers().get(a.get(i+1)).getDiscountConfig().getCalculateGroup();
             if(order>nextOrder){
@@ -228,10 +253,11 @@ public abstract class Permutation<T extends GoodsItem> {
     /**
      * 根据数组顺序执行计算器上下文
      * @param context 优惠上下文
-     * @param a
+     * @param a 优惠组合，一组计算的排列顺序
      * @return
      */
     public boolean executeCalc(DiscountContext<T> context,List<Byte> a){
+        // 一组优惠计算排列顺序，对应的 key
         Integer k = calcKey(a);
         boolean canOptimize = enableOptimize(a)&&cache.containsKey(k);
         initInner(canOptimize,k);
@@ -244,7 +270,7 @@ public abstract class Permutation<T extends GoodsItem> {
                 break;
             }
             if(Objects.nonNull(calculator)){
-                //执行计算器
+                //执行计算器：若当前优惠计算不合法，即此优惠计算排列不合法，并退出计算。
                 if(!calcInner(calculator,wrapper,a,i)){
                     return false;
                 }
@@ -252,11 +278,13 @@ public abstract class Permutation<T extends GoodsItem> {
                 cacheSnapshot(a,i,k);
             }
         }
+        // 当前计算排列顺序，对应计算结果信息
         long curPrice = context.getCalcResult().getCurPrice();
         context.getCalcResult().setCurFinalPrice(curPrice);
         CalcStage[] stages = context.getCalcResult().getCurStages();
+        // 当前计算排列，是否最优计算结果。若是，则返回 true; 若不是，则返回 false
         return curPrice<context.getCalcResult().getFinalPrice()&&(CollectionUtils.isEmpty(this.mustUseSet) || isMustUse(stages, this.mustUseSet))||
-                //相同最优解处理逻辑
+                // 相同最优解处理逻辑
                 curPrice==context.getCalcResult().getFinalPrice()&&(CollectionUtils.isEmpty(this.mustUseSet) || isMustUse(stages, this.mustUseSet))&&sameOptimumCondition(stages);
     }
 
